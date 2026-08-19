@@ -1,16 +1,18 @@
 {
-  "name": "main",
-  "module": "index.ts",
+  "name": "woolwich",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "bun index.html"
+  },
+  "dependencies": {
+    "@ue-too/board": "^0.17.7",
+    "@ue-too/math": "^0.17.7"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
-  },
-  "dependencies": {
-    "@ue-too/board": "^0.17.7",
-    "@ue-too/math": "^0.17.7"
   }
 }
