@@ -11,15 +11,37 @@ export type FireMission = {
 
 export type FireSolution =
   | { ok: true; params: ShotParams; predicted: Trajectory }
-  | { ok: false; reason: "out-of-range" | "no-convergence"; predicted?: Trajectory };
+  | {
+      ok: false;
+      /** out-of-range: beyond even the vacuum envelope; unreachable: drag/wind cap the
+       * real range short of the target; masked: terrain above the target blocks the arc. */
+      reason: "out-of-range" | "unreachable" | "masked";
+      predicted?: Trajectory;
+      /** how far short the best effort lands, for "unreachable" */
+      shortfallMeters?: number;
+    };
 
 const TOLERANCE = 25; // meters, horizontal miss distance
 const MAX_ITERATIONS = 25;
 const MAX_STEP_DEG = 10;
 const RAD_TO_DEG = 180 / Math.PI;
+/** impact terrain this far above the target's elevation reads as a masking ridge */
+const MASK_ELEVATION_MARGIN = 25;
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
+}
+
+function classifyNonConvergence(
+  predicted: Trajectory | undefined,
+  mission: { targetElevation: number; range: number; origin: Vec3 },
+): FireSolution {
+  const impact = predicted?.impact ?? null;
+  if (impact && impact.z > mission.targetElevation + MASK_ELEVATION_MARGIN) {
+    return { ok: false, reason: "masked", predicted };
+  }
+  const along = impact ? Math.hypot(impact.x - mission.origin.x, impact.y - mission.origin.y) : 0;
+  return { ok: false, reason: "unreachable", predicted, shortfallMeters: Math.max(0, mission.range - along) };
 }
 
 export function solveFireMission(mission: FireMission): FireSolution {
@@ -29,7 +51,8 @@ export function solveFireMission(mission: FireMission): FireSolution {
   const dx = target.x - origin.x;
   const dy = target.y - origin.y;
   const range = Math.hypot(dx, dy);
-  const dh = ground(target.x, target.y) - origin.z;
+  const targetElevation = ground(target.x, target.y);
+  const dh = targetElevation - origin.z;
 
   // vacuum high-arc initial guess with height difference:
   // tanθ = (v² + √(v⁴ − g(gR² + 2Δh·v²))) / (gR)
@@ -50,7 +73,7 @@ export function solveFireMission(mission: FireMission): FireSolution {
     const params: ShotParams = { elevationDeg, azimuthDeg, muzzleSpeed };
     const trajectory = predictPath(params, env, { ground, origin });
     if (!trajectory.impact) {
-      return { ok: false, reason: "no-convergence", predicted: best?.trajectory ?? trajectory };
+      return classifyNonConvergence(best?.trajectory ?? trajectory, { targetElevation, range, origin });
     }
     const ix = trajectory.impact.x - origin.x;
     const iy = trajectory.impact.y - origin.y;
@@ -74,5 +97,5 @@ export function solveFireMission(mission: FireMission): FireSolution {
     prev = { elevationDeg, along };
     elevationDeg = clamp(elevationDeg + clamp(step, -MAX_STEP_DEG, MAX_STEP_DEG), 1, 89);
   }
-  return { ok: false, reason: "no-convergence", predicted: best?.trajectory };
+  return classifyNonConvergence(best?.trajectory, { targetElevation, range, origin });
 }

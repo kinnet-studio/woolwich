@@ -99,3 +99,22 @@ describe("sampleProfile", () => {
     expect(p.map((q) => q.z)).toEqual([5, 10, 15]);
   });
 });
+
+import { profileExtent } from "../src/render/terrainProfile";
+
+describe("profileExtent", () => {
+  test("axis-aligned bearings run to the map edge", () => {
+    expect(profileExtent({ x: 0, y: 0, z: 0 }, 0, 4000)).toBeCloseTo(4000, 6);
+    expect(profileExtent({ x: 0, y: 0, z: 0 }, 90, 4000)).toBeCloseTo(4000, 6);
+    expect(profileExtent({ x: 0, y: 0, z: 0 }, 180, 4000)).toBeCloseTo(4000, 6);
+  });
+
+  test("diagonal bearing reaches the corner", () => {
+    expect(profileExtent({ x: 0, y: 0, z: 0 }, 45, 4000)).toBeCloseTo(4000 * Math.SQRT2, 3);
+  });
+
+  test("offset origin shortens or lengthens the run", () => {
+    expect(profileExtent({ x: 2000, y: 0, z: 0 }, 0, 4000)).toBeCloseTo(2000, 6);
+    expect(profileExtent({ x: 2000, y: 0, z: 0 }, 180, 4000)).toBeCloseTo(6000, 6);
+  });
+});

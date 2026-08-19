@@ -34,14 +34,26 @@ describe("solveFireMission", () => {
     expect(r.reason).toBe("out-of-range");
   });
 
-  test("reports no-convergence with a best-effort trajectory when a ridge masks the target", () => {
+  test("reports masked with a best-effort trajectory when a ridge masks the target", () => {
     const ridge: GroundFn = (x) => (x > 900 && x < 1100 ? 2000 : 0);
     const r = solveFireMission({ target: { x: 2000, y: 0 }, muzzleSpeed: 150, env: VACUUM, ground: ridge });
     expect(r.ok).toBe(false);
     if (r.ok) return;
-    expect(r.reason).toBe("no-convergence");
+    expect(r.reason).toBe("masked");
     expect(r.predicted?.impact?.x).toBeGreaterThan(850);
     expect(r.predicted?.impact?.x).toBeLessThan(1150);
+  });
+
+  test("reports unreachable with a shortfall when drag makes the target too far", () => {
+    // vacuum range at 250 m/s is ~6.4 km, but drag 0.0003 caps it near 2.9 km
+    const env: Environment = { gravity: 9.81, dragCoefficient: 0.0003, windSpeed: 0, windDirectionDeg: 0 };
+    const r = solveFireMission({ target: { x: 3000, y: 0 }, muzzleSpeed: 250, env });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe("unreachable");
+    expect(r.predicted?.impact).toBeTruthy();
+    expect(r.shortfallMeters).toBeGreaterThan(50);
+    expect(r.shortfallMeters).toBeLessThan(400);
   });
 
   test("is deterministic", () => {

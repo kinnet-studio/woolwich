@@ -3,6 +3,17 @@ import { sampleTerrain, type Terrain } from "../terrain/terrain";
 
 export type ProfilePoint = { s: number; z: number };
 
+/** Distance from origin to the map edge along a bearing, so profiles stop at real terrain. */
+export function profileExtent(origin: Vec3, bearingDeg: number, extent: number): number {
+  const rad = bearingDeg * DEG_TO_RAD;
+  const dx = Math.cos(rad);
+  const dy = Math.sin(rad);
+  let t = Infinity;
+  if (Math.abs(dx) > 1e-12) t = Math.min(t, Math.max((extent - origin.x) / dx, (-extent - origin.x) / dx));
+  if (Math.abs(dy) > 1e-12) t = Math.min(t, Math.max((extent - origin.y) / dy, (-extent - origin.y) / dy));
+  return t;
+}
+
 /** Terrain elevations along a bearing from an origin, at fixed s spacing. */
 export function sampleProfile(
   terrain: Terrain,
