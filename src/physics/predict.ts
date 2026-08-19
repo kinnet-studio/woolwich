@@ -1,6 +1,6 @@
 import { FIXED_DT, stepState } from "./integrator";
 import { launchState } from "./shot";
-import type { Environment, ShotParams, Vec3 } from "./types";
+import { FLAT_GROUND, type Environment, type GroundFn, type ShotParams, type Vec3 } from "./types";
 
 export const MAX_FLIGHT_TIME = 120;
 
@@ -11,13 +11,20 @@ export type Trajectory = {
   truncated: boolean;
 };
 
-export function predictPath(params: ShotParams, env: Environment): Trajectory {
-  let state = launchState(params);
+export type PredictOptions = { ground?: GroundFn; origin?: Vec3 };
+
+export function predictPath(
+  params: ShotParams,
+  env: Environment,
+  opts: PredictOptions = {},
+): Trajectory {
+  const ground = opts.ground ?? FLAT_GROUND;
+  let state = launchState(params, opts.origin);
   const points: Vec3[] = [state.position];
   while (state.time < MAX_FLIGHT_TIME) {
     state = stepState(state, env, FIXED_DT);
     points.push(state.position);
-    if (state.position.z <= 0 && state.velocity.z < 0) {
+    if (state.position.z <= ground(state.position.x, state.position.y)) {
       return { points, impact: state.position, flightTime: state.time, truncated: false };
     }
   }
