@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mulberry32 } from "../src/terrain/prng";
 import { generateTerrain } from "../src/terrain/generate";
 import { sampleTerrain, type Terrain } from "../src/terrain/terrain";
+import { sampleProfile } from "../src/render/terrainProfile";
 
 describe("mulberry32", () => {
   test("same seed produces the same sequence", () => {
@@ -72,5 +73,29 @@ describe("terrain", () => {
   test("relief stays within the octave amplitude budget", () => {
     const t = generateTerrain(9);
     for (const h of t.heights) expect(Math.abs(h)).toBeLessThanOrEqual(112.5);
+  });
+});
+
+describe("sampleProfile", () => {
+  const flat: Terrain = {
+    extent: 1000, cellSize: 1000, size: 3,
+    heights: new Float64Array(9).fill(42),
+  };
+
+  test("flat terrain gives a constant profile with correct s spacing", () => {
+    const p = sampleProfile(flat, { x: 0, y: 0, z: 0 }, 30, 500, 100);
+    expect(p.length).toBe(6);
+    expect(p[0]).toEqual({ s: 0, z: 42 });
+    expect(p[5]!.s).toBe(500);
+    for (const pt of p) expect(pt.z).toBeCloseTo(42, 9);
+  });
+
+  test("bearing 0 samples along +x", () => {
+    const t: Terrain = {
+      extent: 100, cellSize: 100, size: 3,
+      heights: new Float64Array([0, 0, 0, 5, 10, 15, 0, 0, 0]), // middle row rises eastward
+    };
+    const p = sampleProfile(t, { x: -100, y: 0, z: 0 }, 0, 200, 100);
+    expect(p.map((q) => q.z)).toEqual([5, 10, 15]);
   });
 });
