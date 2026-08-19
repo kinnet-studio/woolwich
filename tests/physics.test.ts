@@ -62,3 +62,24 @@ describe("forces", () => {
     expect(a.z).toBeCloseTo(-9.81, 6);
   });
 });
+
+import { FIXED_DT, stepState } from "../src/physics/integrator";
+
+describe("stepState", () => {
+  test("semi-implicit Euler: velocity updates first, then position uses new velocity", () => {
+    const s0 = { position: { x: 0, y: 0, z: 100 }, velocity: { x: 10, y: 0, z: 0 }, time: 0 };
+    const s1 = stepState(s0, CALM, 0.5);
+    // vz' = 0 - 9.81*0.5 = -4.905 ; z' = 100 + (-4.905)*0.5 = 97.5475
+    expect(s1.velocity.z).toBeCloseTo(-4.905, 6);
+    expect(s1.position.z).toBeCloseTo(97.5475, 6);
+    expect(s1.position.x).toBeCloseTo(5, 6);
+    expect(s1.time).toBeCloseTo(0.5, 6);
+    // input state is not mutated
+    expect(s0.position.z).toBe(100);
+    expect(s0.velocity.z).toBe(0);
+  });
+
+  test("FIXED_DT is 1/120", () => {
+    expect(FIXED_DT).toBeCloseTo(1 / 120, 12);
+  });
+});
