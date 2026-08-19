@@ -53,7 +53,8 @@ src/
     terrainProfile.ts      side-view profile along a bearing
     standsTop.ts           stand/battery/wreck markers
   gallery/
-    main.ts                page wiring: click → solve → fire → burst
+    fireControl.ts         @ue-too/being state machine for interaction flow
+    main.ts                page wiring: DOM events → state machine → render
     panel.ts               mission readout, seed control, advanced sliders
   physics/                 (modified, backward compatible — see below)
 ```
@@ -140,6 +141,23 @@ same function).
   invalidates the current solution, requiring a new click/solve).
 - One shell in flight at a time; clicking during flight queues nothing —
   the click is ignored until impact.
+- **Interaction flow is a finite state machine** (`@ue-too/being`, the
+  azabu convention — no ad-hoc boolean interaction flags): states `READY`
+  (accepts map clicks and Fire) and `IN_FLIGHT` (ignores both). Events:
+  `mapClick`, `fire` (guarded — transitions to `IN_FLIGHT` only when a
+  valid solution exists), `impact` (→ `READY`), `envChanged` (applies the
+  environment; invalidates any current solution), `regenerate` (resets the
+  world, → `READY`). Game actions (solve, launch, burst, reset) live in a
+  context object of callbacks, so the machine is unit-testable headlessly.
+  After impact the solution is invalidated only by `envChanged`, a new
+  click, or `regenerate` — Fire may re-fire the same mission.
+
+## Stack additions
+
+- New dependency: `@ue-too/being` (^0.17.7), the state machine framework —
+  used for the gallery's interaction flow per the azabu convention. All
+  other stack choices carry over from the v1 spec (`@ue-too/board`,
+  `@ue-too/math`, Bun, no UI framework).
 
 ## Error handling
 
@@ -165,6 +183,11 @@ same function).
   range → `out-of-range`; deterministic (same inputs → identical output).
 - **Damage:** falloff arithmetic at exact distances; armor multiplier;
   clamping; wreck immunity; suppression decay over simulated seconds.
+- **Fire-control state machine:** exercised headlessly against a mock
+  callback context — clicks solve in `READY`; `fire` is a no-op without a
+  valid solution and transitions to `IN_FLIGHT` with one; clicks and fire
+  are ignored in flight; `impact` returns to `READY`; `envChanged` and
+  `regenerate` behave per state.
 
 Rendering and the click-to-fire UX are verified manually in the browser,
 per the v1 convention.
