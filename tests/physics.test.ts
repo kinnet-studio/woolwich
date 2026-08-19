@@ -127,3 +127,12 @@ describe("predictPath", () => {
     expect(t.flightTime).toBeGreaterThanOrEqual(120);
   });
 });
+
+import { downrange } from "../src/render/scene";
+
+describe("downrange", () => {
+  test("is the horizontal distance, ignoring altitude", () => {
+    expect(downrange({ x: 3, y: 4, z: 999 })).toBeCloseTo(5, 9);
+    expect(downrange({ x: 0, y: 0, z: 10 })).toBe(0);
+  });
+});
