@@ -1,13 +1,12 @@
-import {
+import type {
   BaseContext,
   CreateStateType,
   EventGuards,
   EventReactions,
   Guard,
   StateMachine,
-  TemplateState,
-  TemplateStateMachine,
 } from "@ue-too/being";
+import { TemplateState, TemplateStateMachine } from "@ue-too/being";
 
 export type FireControlEventMapping = {
   mapClick: { x: number; y: number };
@@ -39,17 +38,17 @@ export type FireControlStateMachine = StateMachine<
 >;
 
 class ReadyState extends TemplateState<FireControlEventMapping, FireControlContext, FireControlStates> {
-  protected _guards: Guard<FireControlContext, "hasValidSolution"> = {
+  protected override _guards: Guard<FireControlContext, "hasValidSolution"> = {
     hasValidSolution: (ctx) => ctx.hasValidSolution(),
   };
 
-  protected _eventGuards: Partial<
+  protected override _eventGuards: Partial<
     EventGuards<FireControlEventMapping, FireControlStates, FireControlContext, Guard<FireControlContext, "hasValidSolution">>
   > = {
     fire: [{ guard: "hasValidSolution", target: "IN_FLIGHT" }],
   };
 
-  protected _eventReactions = {
+  protected override _eventReactions = {
     mapClick: {
       action: (ctx: FireControlContext, payload: FireControlEventMapping["mapClick"]) => {
         ctx.solve(payload);
@@ -81,7 +80,7 @@ class ReadyState extends TemplateState<FireControlEventMapping, FireControlConte
 
 class InFlightState extends TemplateState<FireControlEventMapping, FireControlContext, FireControlStates> {
   // mapClick and fire have no reactions here: clicks during flight are ignored
-  protected _eventReactions = {
+  protected override _eventReactions = {
     impact: {
       action: (ctx: FireControlContext) => {
         ctx.handleImpact();
