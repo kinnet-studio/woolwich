@@ -25,3 +25,40 @@ describe("launchState", () => {
     expect(s.velocity.z).toBeCloseTo(80, 6);
   });
 });
+
+import { acceleration, windVector } from "../src/physics/forces";
+import type { Environment } from "../src/physics/types";
+
+const CALM: Environment = { gravity: 9.81, dragCoefficient: 0, windSpeed: 0, windDirectionDeg: 0 };
+
+describe("forces", () => {
+  test("windVector converts speed+direction to a horizontal vector", () => {
+    const w = windVector({ ...CALM, windSpeed: 10, windDirectionDeg: 90 });
+    expect(w.x).toBeCloseTo(0, 6);
+    expect(w.y).toBeCloseTo(10, 6);
+    expect(w.z).toBe(0);
+  });
+
+  test("with zero drag, acceleration is pure gravity", () => {
+    const a = acceleration({ x: 40, y: 5, z: 30 }, CALM);
+    expect(a.x).toBeCloseTo(0, 12);
+    expect(a.y).toBeCloseTo(0, 12);
+    expect(a.z).toBeCloseTo(-9.81, 12);
+  });
+
+  test("drag opposes air-relative velocity, quadratically", () => {
+    const env: Environment = { ...CALM, dragCoefficient: 0.01 };
+    const a = acceleration({ x: 50, y: 0, z: 0 }, env);
+    // |v_air| = 50, a_x = -0.01 * 50 * 50 = -25
+    expect(a.x).toBeCloseTo(-25, 6);
+    expect(a.y).toBeCloseTo(0, 6);
+    expect(a.z).toBeCloseTo(-9.81, 6);
+  });
+
+  test("a tailwind matching projectile velocity produces zero drag", () => {
+    const env: Environment = { ...CALM, dragCoefficient: 0.01, windSpeed: 50, windDirectionDeg: 0 };
+    const a = acceleration({ x: 50, y: 0, z: 0 }, env);
+    expect(a.x).toBeCloseTo(0, 6);
+    expect(a.z).toBeCloseTo(-9.81, 6);
+  });
+});
