@@ -50,11 +50,9 @@ export function buildTerrainImage(terrain: Terrain): HTMLCanvasElement {
   return off;
 }
 
-/** Blit the pre-rendered image into world coordinates (call under the board's y-up transform). */
+/** Blit the pre-rendered image in world coordinates. The board's proxied context
+ * (alignCoordinateSystem = false) y-flips drawImage itself, so no manual transform:
+ * dy = -extent puts the image's row 0 (north) at world y = +extent. */
 export function drawTerrainTop(ctx: CanvasRenderingContext2D, terrain: Terrain, image: HTMLCanvasElement): void {
-  ctx.save();
-  ctx.translate(-terrain.extent, terrain.extent);
-  ctx.scale(1, -1);
-  ctx.drawImage(image, 0, 0, terrain.extent * 2, terrain.extent * 2);
-  ctx.restore();
+  ctx.drawImage(image, -terrain.extent, -terrain.extent, terrain.extent * 2, terrain.extent * 2);
 }
