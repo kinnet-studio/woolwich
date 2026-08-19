@@ -3,13 +3,14 @@ import type { Environment } from "../physics/types";
 type SliderSpec = { id: string; label: string; min: number; max: number; step: number; value: number; unit: string };
 
 const SLIDERS: SliderSpec[] = [
+  { id: "adv-muzzle", label: "Muzzle velocity", min: 50, max: 300, step: 5, value: 250, unit: " m/s" },
   { id: "adv-gravity", label: "Gravity", min: 1, max: 25, step: 0.01, value: 9.81, unit: " m/s²" },
   { id: "adv-drag", label: "Drag coefficient", min: 0, max: 0.002, step: 0.0001, value: 0.0003, unit: " /m" },
   { id: "adv-windspeed", label: "Wind speed", min: 0, max: 40, step: 1, value: 0, unit: " m/s" },
   { id: "adv-winddir", label: "Wind direction", min: -180, max: 180, step: 5, value: 0, unit: "°" },
 ];
 
-export function setupAdvancedPanel(onChange: () => void): { environment(): Environment } {
+export function setupAdvancedPanel(onChange: () => void): { environment(): Environment; muzzleSpeed(): number } {
   const container = document.getElementById("advanced")!;
   const inputs = new Map<string, HTMLInputElement>();
   for (const spec of SLIDERS) {
@@ -40,5 +41,6 @@ export function setupAdvancedPanel(onChange: () => void): { environment(): Envir
       windSpeed: value("adv-windspeed"),
       windDirectionDeg: value("adv-winddir"),
     }),
+    muzzleSpeed: () => value("adv-muzzle"),
   };
 }

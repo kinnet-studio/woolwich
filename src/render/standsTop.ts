@@ -34,7 +34,7 @@ export function drawBattery(ctx: CanvasRenderingContext2D, position: Vec3): void
   ctx.restore();
 }
 
-const BURST_DURATION = 0.6; // seconds
+export const BURST_DURATION = 0.6; // seconds
 
 export function drawBurstRing(ctx: CanvasRenderingContext2D, impact: Vec3, ageSeconds: number): void {
   const t = Math.min(1, ageSeconds / BURST_DURATION);

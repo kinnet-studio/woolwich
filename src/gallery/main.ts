@@ -1,7 +1,7 @@
 import { Board } from "@ue-too/board";
 import { DEG_TO_RAD, type Vec3 } from "../physics/types";
 import { drawCircle, drawCross, drawPolyline } from "../render/draw";
-import { drawBattery, drawBurstRing, drawStandsTop } from "../render/standsTop";
+import { drawBattery, drawBurstRing, drawStandsTop, BURST_DURATION } from "../render/standsTop";
 import { drawProfile, sampleProfile, type ProfilePoint } from "../render/terrainProfile";
 import { buildTerrainImage, drawTerrainTop } from "../render/terrainTop";
 import { Simulation } from "../sim";
@@ -14,6 +14,7 @@ import { setupAdvancedPanel } from "./panel";
 const PREDICTED = "rgba(120, 190, 255, 0.7)";
 const SHELL = "#ffb347";
 const IMPACT = "#e05555";
+const PROFILE_MAX_S = 8500;
 
 function setupBoard(canvasId: string, camX: number, camY: number, zoom: number): Board {
   const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
@@ -39,7 +40,7 @@ let world: WorldState = createWorld(1);
 let terrainImage = buildTerrainImage(world.terrain);
 let solution: FireSolution | null = null;
 let bearingDeg = 0;
-let profile: ProfilePoint[] = sampleProfile(world.terrain, world.battery.position, bearingDeg, 8500);
+let profile: ProfilePoint[] = sampleProfile(world.terrain, world.battery.position, bearingDeg, PROFILE_MAX_S);
 let sim = new Simulation(panel.environment(), world.ground);
 let bursts: { impact: Vec3; age: number }[] = [];
 
@@ -47,8 +48,9 @@ const context: FireControlContext = {
   setup: () => {},
   cleanup: () => {},
   solve: (target) => {
+    world.battery.muzzleSpeed = panel.muzzleSpeed();
     bearingDeg = Math.atan2(target.y - world.battery.position.y, target.x - world.battery.position.x) / DEG_TO_RAD;
-    profile = sampleProfile(world.terrain, world.battery.position, bearingDeg, 8500);
+    profile = sampleProfile(world.terrain, world.battery.position, bearingDeg, PROFILE_MAX_S);
     solution = solveFireMission({
       target,
       muzzleSpeed: world.battery.muzzleSpeed,
@@ -62,6 +64,7 @@ const context: FireControlContext = {
           `elevation: ${solution.params.elevationDeg.toFixed(2)}°`,
           `muzzle: ${world.battery.muzzleSpeed} m/s`,
           `time of flight: ${solution.predicted.flightTime.toFixed(1)} s`,
+          `miss: ${Math.hypot(solution.predicted.impact!.x - target.x, solution.predicted.impact!.y - target.y).toFixed(0)} m`,
         ].join("\n")
       : solution.reason === "out-of-range"
         ? "OUT OF RANGE"
@@ -93,7 +96,7 @@ const context: FireControlContext = {
     sim = new Simulation(panel.environment(), world.ground);
     solution = null;
     bursts = [];
-    profile = sampleProfile(world.terrain, world.battery.position, bearingDeg, 8500);
+    profile = sampleProfile(world.terrain, world.battery.position, bearingDeg, PROFILE_MAX_S);
     missionEl.textContent = "click the map to plot a fire mission";
   },
 };
@@ -134,7 +137,7 @@ function frame(timestamp: number) {
   sim.advance(elapsed);
   decaySuppression(world.stands, elapsed);
   for (const b of bursts) b.age += elapsed;
-  bursts = bursts.filter((b) => b.age < 0.6);
+  bursts = bursts.filter((b) => b.age < BURST_DURATION);
 
   // the machine is the impact latch: only IN_FLIGHT handles the event, and
   // handling it transitions to READY, so the burst applies exactly once
