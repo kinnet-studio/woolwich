@@ -4,6 +4,10 @@
   "workspaces": {
     "": {
       "name": "main",
+      "dependencies": {
+        "@ue-too/board": "^0.17.7",
+        "@ue-too/math": "^0.17.7",
+      },
       "devDependencies": {
         "@types/bun": "latest",
       },
@@ -16,6 +20,12 @@
     "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
     "@types/node": ["@types/node@26.2.0", "", { "dependencies": { "undici-types": "~8.3.0" } }, "sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg=="],
+
+    "@ue-too/being": ["@ue-too/being@0.17.7", "", {}, "sha512-lqLxUsCZixd/scd820L+9UX0Nj5LwdMC1gF2ZYtD2WzlrgkUehVN6GI/bVgwQ2IGI0fGqM4KMiCHno7PPvs/xw=="],
+
+    "@ue-too/board": ["@ue-too/board@0.17.7", "", { "dependencies": { "@ue-too/being": "^0.17.7", "@ue-too/math": "^0.17.7" } }, "sha512-IFGvRhkSboN9CFPbcy+FRokZta4fVidHc7djPlgUykATvr0s+2u3vN+u9X2doDuy79CvRSRyzAZkw1JwZI8j9g=="],
+
+    "@ue-too/math": ["@ue-too/math@0.17.7", "", {}, "sha512-TigtDzPvxYB3+iJxSUF5zpO7huFUO4OJQnZSCv5Rp3qzk5GKRBySBtrTbp/j+HFhBniSryKbNlIgJGNlpFMnkw=="],
 
     "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 

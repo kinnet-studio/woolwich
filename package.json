@@ -8,5 +8,9 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@ue-too/board": "^0.17.7",
+    "@ue-too/math": "^0.17.7"
   }
 }
