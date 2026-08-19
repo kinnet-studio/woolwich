@@ -19,9 +19,9 @@ describe("placeStands", () => {
     expect(a.length).toBe(8);
     for (const s of a) {
       expect(s.position.x).toBeGreaterThanOrEqual(2000);
-      expect(s.position.x).toBeLessThanOrEqual(3500);
-      expect(s.position.y).toBeGreaterThanOrEqual(-1000);
-      expect(s.position.y).toBeLessThanOrEqual(1000);
+      expect(s.position.x).toBeLessThanOrEqual(2700);
+      expect(s.position.y).toBeGreaterThanOrEqual(-700);
+      expect(s.position.y).toBeLessThanOrEqual(700);
       expect(s.position.z).toBe(sampleTerrain(terrain, s.position.x, s.position.y));
       expect(s.strength).toBe(100);
       expect(s.suppression).toBe(0);

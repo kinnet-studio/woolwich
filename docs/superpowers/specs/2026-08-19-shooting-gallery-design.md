@@ -108,7 +108,7 @@ same function).
 - `Stand = { id, kind: "infantry" | "armor", position: Vec3,
   strength: number (0–100), suppression: number (0–100) }`.
 - Placement: a seeded scatter of stands (default 8) inside a target zone
-  east of the battery (x ∈ [2000, 3500] m, y ∈ [−1000, 1000] m), each
+  east of the battery (x ∈ [2000, 2700] m, y ∈ [−700, 700] m — zone corner ≈2789 m, inside the ≈2872 m drag-limited range at the default 250 m/s), each
   snapped to `terrain.sample`.
 - `applyBurst(impact, stands)` — deterministic, no RNG:
   - Lethal radius 50 m: `strength -= 80 · (1 − d/50)`, multiplied by 1.0

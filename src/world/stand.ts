@@ -14,7 +14,8 @@ export type Stand = {
   suppression: number;
 };
 
-const ZONE = { xMin: 2000, xMax: 3500, yMin: -1000, yMax: 1000 };
+// corner distance ~2789 m stays inside the ~2872 m drag-limited range at the default 250 m/s
+const ZONE = { xMin: 2000, xMax: 2700, yMin: -700, yMax: 700 };
 
 export function placeStands(seed: number, terrain: Terrain, count = 8): Stand[] {
   const rand = mulberry32((seed ^ 0x5747414e) >>> 0); // decorrelated from the terrain stream

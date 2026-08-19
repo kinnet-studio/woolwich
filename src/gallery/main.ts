@@ -114,7 +114,8 @@ function clickToWorld(ev: MouseEvent): { x: number; y: number } {
 }
 
 topCanvas.addEventListener("click", (ev) => machine.happens("mapClick", clickToWorld(ev)));
-document.getElementById("g-fire")!.addEventListener("click", () => machine.happens("fire"));
+const fireButton = document.getElementById("g-fire") as HTMLButtonElement;
+fireButton.addEventListener("click", () => machine.happens("fire"));
 document.getElementById("regen")!.addEventListener("click", () =>
   machine.happens("regenerate", { seed: Number(seedInput.value) || 1 }),
 );
@@ -170,6 +171,9 @@ function frame(timestamp: number) {
 
   const destroyed = world.stands.filter((s) => s.strength <= 0).length;
   tallyEl.textContent = `destroyed: ${destroyed} / ${world.stands.length}`;
+  const inFlight = machine.currentState === "IN_FLIGHT";
+  fireButton.disabled = inFlight;
+  fireButton.textContent = inFlight ? "In flight…" : "Fire";
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
