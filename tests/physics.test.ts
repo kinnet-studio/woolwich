@@ -83,3 +83,47 @@ describe("stepState", () => {
     expect(FIXED_DT).toBeCloseTo(1 / 120, 12);
   });
 });
+
+import { predictPath } from "../src/physics/predict";
+
+describe("predictPath", () => {
+  const SHOT = { elevationDeg: 45, azimuthDeg: 0, muzzleSpeed: 100 };
+
+  test("drag-free shot matches the closed-form parabola", () => {
+    const t = predictPath(SHOT, CALM);
+    const g = CALM.gravity;
+    const v = 100 * Math.SQRT1_2;
+    const expectedFlightTime = (2 * v) / g;          // ≈ 14.417 s
+    const expectedRange = 100 * 100 * Math.sin(Math.PI / 2) / g; // ≈ 1019.37 m
+    const expectedApex = (v * v) / (2 * g);          // ≈ 254.84 m
+    expect(t.truncated).toBe(false);
+    expect(t.impact).not.toBeNull();
+    expect(t.flightTime).toBeCloseTo(expectedFlightTime, 1);
+    expect(t.impact!.x).toBeCloseTo(expectedRange, -1); // within ~5 m of 1019
+    const apex = Math.max(...t.points.map(p => p.z));
+    expect(Math.abs(apex - expectedApex)).toBeLessThan(1); // integrator bias ~a·dt·t/2 ≈ 0.3 m
+  });
+
+  test("drag strictly shortens range", () => {
+    const free = predictPath(SHOT, CALM);
+    const dragged = predictPath(SHOT, { ...CALM, dragCoefficient: 0.0005 });
+    expect(dragged.impact!.x).toBeLessThan(free.impact!.x);
+  });
+
+  test("crosswind drifts the impact point downwind", () => {
+    const wind = predictPath(SHOT, {
+      ...CALM,
+      dragCoefficient: 0.0005,
+      windSpeed: 15,
+      windDirectionDeg: 90, // blowing toward +y (north)
+    });
+    expect(wind.impact!.y).toBeGreaterThan(1);
+  });
+
+  test("zero gravity truncates at MAX_FLIGHT_TIME instead of looping forever", () => {
+    const t = predictPath(SHOT, { ...CALM, gravity: 0 });
+    expect(t.truncated).toBe(true);
+    expect(t.impact).toBeNull();
+    expect(t.flightTime).toBeGreaterThanOrEqual(120);
+  });
+});
