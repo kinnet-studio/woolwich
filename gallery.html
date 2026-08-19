@@ -15,6 +15,8 @@
     button { margin: 12px 6px 0 0; padding: 6px 14px; background: #2c3440; color: inherit; border: 1px solid #3d4859; border-radius: 4px; cursor: pointer; }
     button:hover { background: #38445a; }
     button:disabled { opacity: 0.45; cursor: default; }
+    #firemode { margin-top: 10px; display: flex; gap: 12px; }
+    #firemode label.mode { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; opacity: 0.9; }
     #g-fire { background: #7a2e2e; border-color: #a04040; font-weight: 600; }
     #mission, #tally { margin-top: 14px; font-variant-numeric: tabular-nums; white-space: pre-line; opacity: 0.9; }
     #seed { width: 90px; background: #2c3440; color: inherit; border: 1px solid #3d4859; border-radius: 4px; padding: 4px 8px; }
@@ -33,6 +35,7 @@
       <button id="regen">New map</button>
     </div>
     <button id="g-fire">Fire</button>
+    <div id="firemode"></div>
     <div id="mission">click the map to plot a fire mission</div>
     <div id="tally"></div>
     <details>

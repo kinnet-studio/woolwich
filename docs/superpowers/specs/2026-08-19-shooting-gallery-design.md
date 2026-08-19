@@ -127,6 +127,15 @@ same function).
   every 20 m — drawn once per seed to an offscreen canvas and blitted each
   frame; battery marker (blue), stand markers (red; hollow/grey when
   destroyed), burst ring animation on impact.
+- **Fire mode:** a three-way control — High arc (default), Low arc, Manual.
+  The solver accepts an `arc` preference ("high" takes the plus root of the
+  vacuum closed form, "low" the minus root; the first-step nudge direction
+  flips accordingly). Manual mode bypasses the solver: azimuth comes from
+  the click, elevation from a "Barrel elevation" slider (1–89°, default
+  45°), and the mission is valid only if the predicted trajectory actually
+  impacts. The app remembers the last clicked target; mode, elevation, and
+  environment changes re-solve against it live instead of clearing the
+  mission (with no target yet, they reset to the initial prompt).
 - **Click-to-fire flow:** click a map point → `solveFireMission` → dashed
   solution arc in both views + mission readout (bearing, elevation, muzzle
   speed, time of flight, miss estimate) or the failure reason; the Fire

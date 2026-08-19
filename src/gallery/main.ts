@@ -5,6 +5,7 @@ import { drawBattery, drawBurstRing, drawStandsTop, BURST_DURATION } from "../re
 import { drawProfile, profileExtent, sampleProfile, type ProfilePoint } from "../render/terrainProfile";
 import { buildTerrainImage, drawTerrainTop } from "../render/terrainTop";
 import { Simulation } from "../sim";
+import { predictPath } from "../physics/predict";
 import { solveFireMission, type FireSolution } from "../solver/fireSolution";
 import { applyBurst, decaySuppression } from "../world/damage";
 import { createWorld, type WorldState } from "../world/world";
@@ -43,34 +44,63 @@ let profile: ProfilePoint[] = sampleProfile(world.terrain, world.battery.positio
 let sim = new Simulation(panel.environment(), world.ground);
 let bursts: { impact: Vec3; age: number }[] = [];
 
+let lastTarget: { x: number; y: number } | null = null;
+
+function successReadout(mode: string, target: { x: number; y: number }): string {
+  if (!solution?.ok) return "";
+  return [
+    `mode: ${mode}`,
+    `bearing: ${bearingDeg.toFixed(1)}°`,
+    `elevation: ${solution.params.elevationDeg.toFixed(2)}°`,
+    `muzzle: ${world.battery.muzzleSpeed} m/s`,
+    `time of flight: ${solution.predicted.flightTime.toFixed(1)} s`,
+    `miss: ${Math.hypot(solution.predicted.impact!.x - target.x, solution.predicted.impact!.y - target.y).toFixed(0)} m`,
+  ].join("\n");
+}
+
+function runSolve(target: { x: number; y: number }): void {
+  lastTarget = target;
+  world.battery.muzzleSpeed = panel.muzzleSpeed();
+  bearingDeg = Math.atan2(target.y - world.battery.position.y, target.x - world.battery.position.x) / DEG_TO_RAD;
+  profile = sampleProfile(world.terrain, world.battery.position, bearingDeg, profileExtent(world.battery.position, bearingDeg, world.terrain.extent));
+  const mode = panel.fireMode();
+  if (mode === "manual") {
+    const params = {
+      elevationDeg: panel.manualElevationDeg(),
+      azimuthDeg: bearingDeg,
+      muzzleSpeed: world.battery.muzzleSpeed,
+    };
+    const predicted = predictPath(params, panel.environment(), { ground: world.ground, origin: world.battery.position });
+    if (predicted.impact) {
+      solution = { ok: true, params, predicted };
+      missionEl.textContent = successReadout("manual", target);
+    } else {
+      solution = null;
+      missionEl.textContent = "NO IMPACT within the time cap — adjust elevation";
+    }
+    return;
+  }
+  solution = solveFireMission({
+    target,
+    muzzleSpeed: world.battery.muzzleSpeed,
+    env: panel.environment(),
+    ground: world.ground,
+    origin: world.battery.position,
+    arc: mode,
+  });
+  missionEl.textContent = solution.ok
+    ? successReadout(`${mode} arc`, target)
+    : solution.reason === "out-of-range"
+      ? "OUT OF RANGE"
+      : solution.reason === "masked"
+        ? "NO SOLUTION — masked by terrain (see side view)"
+        : `BEYOND EFFECTIVE RANGE — best effort lands ${Math.round(solution.shortfallMeters ?? 0)} m short`;
+}
+
 const context: FireControlContext = {
   setup: () => {},
   cleanup: () => {},
-  solve: (target) => {
-    world.battery.muzzleSpeed = panel.muzzleSpeed();
-    bearingDeg = Math.atan2(target.y - world.battery.position.y, target.x - world.battery.position.x) / DEG_TO_RAD;
-    profile = sampleProfile(world.terrain, world.battery.position, bearingDeg, profileExtent(world.battery.position, bearingDeg, world.terrain.extent));
-    solution = solveFireMission({
-      target,
-      muzzleSpeed: world.battery.muzzleSpeed,
-      env: panel.environment(),
-      ground: world.ground,
-      origin: world.battery.position,
-    });
-    missionEl.textContent = solution.ok
-      ? [
-          `bearing: ${bearingDeg.toFixed(1)}°`,
-          `elevation: ${solution.params.elevationDeg.toFixed(2)}°`,
-          `muzzle: ${world.battery.muzzleSpeed} m/s`,
-          `time of flight: ${solution.predicted.flightTime.toFixed(1)} s`,
-          `miss: ${Math.hypot(solution.predicted.impact!.x - target.x, solution.predicted.impact!.y - target.y).toFixed(0)} m`,
-        ].join("\n")
-      : solution.reason === "out-of-range"
-        ? "OUT OF RANGE"
-        : solution.reason === "masked"
-          ? "NO SOLUTION — masked by terrain (see side view)"
-          : `BEYOND EFFECTIVE RANGE — best effort lands ${Math.round(solution.shortfallMeters ?? 0)} m short`;
-  },
+  solve: runSolve,
   hasValidSolution: () => solution?.ok === true,
   launch: () => {
     if (!solution?.ok) return;
@@ -78,10 +108,12 @@ const context: FireControlContext = {
     sim.fire(solution.params, world.battery.position);
   },
   invalidateSolution: () => {
-    if (solution) {
-      solution = null;
-      missionEl.textContent = "environment changed — click the map to re-target";
+    if (lastTarget) {
+      runSolve(lastTarget);
+      return;
     }
+    solution = null;
+    missionEl.textContent = "click the map to plot a fire mission";
   },
   applyEnvironment: () => {
     sim.env = panel.environment();
@@ -92,6 +124,7 @@ const context: FireControlContext = {
     bursts.push({ impact: sim.impact, age: 0 });
   },
   resetWorld: (seed) => {
+    lastTarget = null;
     world = createWorld(seed);
     terrainImage = buildTerrainImage(world.terrain);
     sim = new Simulation(panel.environment(), world.ground);

@@ -7,6 +7,8 @@ export type FireMission = {
   env: Environment;
   ground?: GroundFn;
   origin?: Vec3;
+  /** trajectory family: "high" (default, howitzer arc) or "low" (flat, fast, maskable) */
+  arc?: "high" | "low";
 };
 
 export type FireSolution =
@@ -45,6 +47,7 @@ function classifyNonConvergence(
 }
 
 export function solveFireMission(mission: FireMission): FireSolution {
+  const arc = mission.arc ?? "high";
   const ground = mission.ground ?? FLAT_GROUND;
   const origin = mission.origin ?? { x: 0, y: 0, z: 0 };
   const { target, muzzleSpeed, env } = mission;
@@ -62,7 +65,7 @@ export function solveFireMission(mission: FireMission): FireSolution {
   if (g <= 0 || range === 0 || disc < 0) {
     return { ok: false, reason: "out-of-range" };
   }
-  let elevationDeg = Math.atan2(v2 + Math.sqrt(disc), g * range) * RAD_TO_DEG;
+  let elevationDeg = Math.atan2(v2 + (arc === "high" ? 1 : -1) * Math.sqrt(disc), g * range) * RAD_TO_DEG;
   let azimuthDeg = Math.atan2(dy, dx) * RAD_TO_DEG;
   const targetBearing = Math.atan2(dy, dx);
 
@@ -86,11 +89,11 @@ export function solveFireMission(mission: FireMission): FireSolution {
     const bearingErr = (targetBearing - Math.atan2(iy, ix)) * RAD_TO_DEG;
     azimuthDeg += clamp(bearingErr, -MAX_STEP_DEG, MAX_STEP_DEG);
     // elevation: secant step on the along-bearing distance
-    // (high arc: raising elevation shortens range)
+    // (high arc: raising elevation shortens range; low arc: it lengthens it)
     const along = Math.hypot(ix, iy);
     let step: number;
     if (prev === null || Math.abs(along - prev.along) < 1e-6) {
-      step = along < range ? -2 : 2;
+      step = (along < range ? -2 : 2) * (arc === "high" ? 1 : -1);
     } else {
       step = ((range - along) * (elevationDeg - prev.elevationDeg)) / (along - prev.along);
     }

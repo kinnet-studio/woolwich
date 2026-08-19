@@ -63,3 +63,30 @@ describe("solveFireMission", () => {
     expect(a).toEqual(b);
   });
 });
+
+describe("arc selection", () => {
+  test("low arc matches the vacuum minus-root and lands within tolerance", () => {
+    const r = solveFireMission({ target: { x: 2000, y: 0 }, muzzleSpeed: 150, env: VACUUM, arc: "low" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const v2 = 150 * 150;
+    const g = 9.81;
+    const expected = Math.atan2(v2 - Math.sqrt(v2 * v2 - g * g * 2000 * 2000), g * 2000) * (180 / Math.PI);
+    expect(r.params.elevationDeg).toBeCloseTo(expected, 0);
+    const miss = Math.hypot(r.predicted.impact!.x - 2000, r.predicted.impact!.y);
+    expect(miss).toBeLessThanOrEqual(25);
+  });
+
+  test("low arc converges under drag, flying flatter and much faster than high", () => {
+    const env: Environment = { gravity: 9.81, dragCoefficient: 0.0003, windSpeed: 0, windDirectionDeg: 0 };
+    const lo = solveFireMission({ target: { x: 1800, y: 0 }, muzzleSpeed: 220, env, arc: "low" });
+    const hi = solveFireMission({ target: { x: 1800, y: 0 }, muzzleSpeed: 220, env, arc: "high" });
+    expect(lo.ok).toBe(true);
+    expect(hi.ok).toBe(true);
+    if (!lo.ok || !hi.ok) return;
+    const loMiss = Math.hypot(lo.predicted.impact!.x - 1800, lo.predicted.impact!.y);
+    expect(loMiss).toBeLessThanOrEqual(25);
+    expect(lo.params.elevationDeg).toBeLessThan(hi.params.elevationDeg);
+    expect(lo.predicted.flightTime).toBeLessThan(hi.predicted.flightTime / 2);
+  });
+});
