@@ -5,6 +5,7 @@
     "": {
       "name": "main",
       "dependencies": {
+        "@ue-too/being": "^0.17.7",
         "@ue-too/board": "^0.17.7",
         "@ue-too/math": "^0.17.7",
       },
