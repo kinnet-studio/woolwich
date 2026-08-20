@@ -1,21 +1,23 @@
 import { FIXED_DT, stepState } from "./physics/integrator";
 import { launchState } from "./physics/shot";
-import type { Environment, ProjectileState, ShotParams, Vec3 } from "./physics/types";
+import { FLAT_GROUND, type Environment, type GroundFn, type ProjectileState, type ShotParams, type Vec3 } from "./physics/types";
 
 export class Simulation {
   env: Environment;
+  ground: GroundFn;
   state: ProjectileState | null = null;
   impact: Vec3 | null = null;
   paused = false;
   timeScale = 1;
   private accumulator = 0;
 
-  constructor(env: Environment) {
+  constructor(env: Environment, ground: GroundFn = FLAT_GROUND) {
     this.env = env;
+    this.ground = ground;
   }
 
-  fire(params: ShotParams): void {
-    this.state = launchState(params);
+  fire(params: ShotParams, origin?: Vec3): void {
+    this.state = launchState(params, origin);
     this.impact = null;
     this.accumulator = 0;
   }
@@ -36,7 +38,7 @@ export class Simulation {
 
   private integrateOneStep(): void {
     this.state = stepState(this.state!, this.env, FIXED_DT);
-    if (this.state.position.z <= 0 && this.state.velocity.z < 0) {
+    if (this.state.position.z <= this.ground(this.state.position.x, this.state.position.y)) {
       this.impact = this.state.position;
     }
   }

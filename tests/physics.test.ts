@@ -136,3 +136,39 @@ describe("downrange", () => {
     expect(downrange({ x: 0, y: 0, z: 10 })).toBe(0);
   });
 });
+
+import type { GroundFn } from "../src/physics/types";
+
+describe("terrain-aware physics", () => {
+  test("launchState accepts a launch origin", () => {
+    const s = launchState({ elevationDeg: 45, azimuthDeg: 0, muzzleSpeed: 100 }, { x: 100, y: 200, z: 50 });
+    expect(s.position).toEqual({ x: 100, y: 200, z: 50 });
+  });
+
+  test("a shell hits an ascending wall while still climbing", () => {
+    // vertical wall 400 m tall starting at x = 200
+    const wall: GroundFn = (x) => (x > 200 ? 400 : 0);
+    const shot = { elevationDeg: 30, azimuthDeg: 0, muzzleSpeed: 150 };
+    const hit = predictPath(shot, CALM, { ground: wall });
+    // apex of this shot is at t ≈ 7.6 s; the wall is reached at t ≈ 1.5 s, still ascending
+    expect(hit.impact).not.toBeNull();
+    expect(hit.impact!.x).toBeGreaterThan(200);
+    expect(hit.impact!.x).toBeLessThan(215);
+    expect(hit.flightTime).toBeLessThan(2);
+    const flat = predictPath(shot, CALM);
+    expect(flat.impact!.x).toBeGreaterThan(1500);
+  });
+
+  test("launching from altitude over flat ground lands at z <= 0 with extended flight", () => {
+    const t = predictPath(
+      { elevationDeg: 0, azimuthDeg: 0, muzzleSpeed: 50 },
+      CALM,
+      { origin: { x: 100, y: 200, z: 300 } },
+    );
+    const expectedFall = Math.sqrt((2 * 300) / CALM.gravity); // ≈ 7.82 s
+    expect(t.impact).not.toBeNull();
+    expect(t.impact!.z).toBeLessThanOrEqual(0);
+    expect(t.flightTime).toBeCloseTo(expectedFall, 1);
+    expect(t.impact!.x).toBeCloseTo(100 + 50 * expectedFall, -1);
+  });
+});

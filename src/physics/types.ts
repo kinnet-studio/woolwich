@@ -27,3 +27,8 @@ export type ProjectileState = {
 };
 
 export const DEG_TO_RAD = Math.PI / 180;
+
+/** Terrain elevation lookup; the physics treats z <= ground(x, y) as impact. */
+export type GroundFn = (x: number, y: number) => number;
+
+export const FLAT_GROUND: GroundFn = () => 0;
