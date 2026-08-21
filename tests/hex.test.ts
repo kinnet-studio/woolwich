@@ -109,3 +109,57 @@ describe("ops", () => {
     expect(line(a, a)).toEqual([a]);
   });
 });
+
+import { hexCorners, hexHeight, hexToWorld, hexWidth, rowSpacing, worldToHex, type HexLayout } from "../src/hex/layout";
+import { offsetToAxial as o2a } from "../src/hex/coords";
+
+describe("layout", () => {
+  const layout: HexLayout = { size: 20 / Math.sqrt(3) };
+
+  test("hex (0,0) is at the origin; east neighbor is one width away; NE neighbor is half a width and one row spacing away", () => {
+    expect(hexToWorld({ q: 0, r: 0 }, layout)).toEqual({ x: 0, y: 0 });
+    const e = hexToWorld({ q: 1, r: 0 }, layout);
+    expect(e.x).toBeCloseTo(hexWidth(layout), 9);
+    expect(e.y).toBeCloseTo(0, 9);
+    const ne = hexToWorld({ q: 0, r: 1 }, layout);
+    expect(ne.x).toBeCloseTo(hexWidth(layout) / 2, 9);
+    expect(ne.y).toBeCloseTo(rowSpacing(layout), 9);
+  });
+
+  test("flat-to-flat width is 20 km", () => {
+    expect(hexWidth(layout)).toBeCloseTo(20, 9);
+    expect(hexHeight(layout)).toBeCloseTo(2 * layout.size, 9);
+    expect(rowSpacing(layout)).toBeCloseTo(1.5 * layout.size, 9);
+  });
+
+  test("hexToWorld → worldToHex round-trips for every hex of an 80×50 grid, with jitter", () => {
+    for (let row = 0; row < 50; row++) {
+      for (let col = 0; col < 80; col++) {
+        const h = o2a({ col, row });
+        const c = hexToWorld(h, layout);
+        expect(worldToHex(c, layout)).toEqual(h);
+        for (let k = 0; k < 6; k++) {
+          const a = (Math.PI / 3) * k + 0.3;
+          const p = { x: c.x + 0.45 * layout.size * Math.cos(a), y: c.y + 0.45 * layout.size * Math.sin(a) };
+          expect(worldToHex(p, layout)).toEqual(h);
+        }
+      }
+    }
+  });
+
+  test("corners are size from the center, corner 0 is lower-right, corner 2 is the top", () => {
+    const h = { q: 2, r: 3 };
+    const c = hexToWorld(h, layout);
+    const corners = hexCorners(h, layout);
+    expect(corners.length).toBe(6);
+    for (const p of corners) expect(Math.hypot(p.x - c.x, p.y - c.y)).toBeCloseTo(layout.size, 9);
+    expect(corners[0]!.x).toBeGreaterThan(c.x);
+    expect(corners[0]!.y).toBeLessThan(c.y);
+    expect(corners[2]!.x).toBeCloseTo(c.x, 9);
+    expect(corners[2]!.y).toBeCloseTo(c.y + layout.size, 9);
+    const xs = corners.map((p) => p.x);
+    const ys = corners.map((p) => p.y);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(hexWidth(layout), 9);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(hexHeight(layout), 9);
+  });
+});
