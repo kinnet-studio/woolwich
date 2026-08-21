@@ -269,3 +269,54 @@ describe("generateWorld", () => {
     }
   });
 });
+
+import { countByOwner, frontLength, frontlineEdges, isFrontierEdge } from "../src/strategic/queries";
+
+describe("queries", () => {
+  test("frontier edges on a hand-built strip: A A N B B", () => {
+    const w = createEmptyWorld(1, 5, 1);
+    w.terrain.fill(Terrain.Plains);
+    w.terrain[2] = Terrain.Ocean;
+    w.owner.set([Owner.BlocA, Owner.BlocA, Owner.Neutral, Owner.BlocB, Owner.BlocB]);
+    expect(isFrontierEdge(w, 0, 0)).toBe(false);   // A|A
+    expect(isFrontierEdge(w, 1, 0)).toBe(true);    // A|N
+    expect(isFrontierEdge(w, 2, 0)).toBe(true);    // N|B
+    expect(isFrontierEdge(w, 4, 0)).toBe(false);   // off the map
+    const edges = frontlineEdges(w);
+    expect(edges).toEqual([
+      { index: 1, dir: 0, kind: "border" },
+      { index: 2, dir: 0, kind: "border" },
+    ]);
+    expect(countByOwner(w)).toEqual([0, 2, 2]);
+    expect(frontLength(w)).toBe(0);
+  });
+
+  test("a direct A|B contact is a front edge", () => {
+    const w = createEmptyWorld(1, 2, 1);
+    w.terrain.fill(Terrain.Plains);
+    w.owner.set([Owner.BlocA, Owner.BlocB]);
+    expect(frontlineEdges(w)).toEqual([{ index: 0, dir: 0, kind: "front" }]);
+    expect(frontLength(w)).toBe(1);
+  });
+
+  test("on a generated world every edge separates different owners, appears once, and counts sum to land", () => {
+    const world = generateWorld(1);
+    const seen = new Set<string>();
+    for (const e of frontlineEdges(world)) {
+      const j = hexAt(world, neighbors(axialOf(world, e.index))[e.dir]!);
+      expect(j).toBeGreaterThanOrEqual(0);
+      const a = world.owner[e.index]!;
+      const b = world.owner[j]!;
+      expect(a).not.toBe(b);
+      expect(e.kind).toBe(a !== Owner.Neutral && b !== Owner.Neutral ? "front" : "border");
+      const k = e.index < j ? `${e.index}-${j}` : `${j}-${e.index}`;
+      expect(seen.has(k)).toBe(false);
+      seen.add(k);
+    }
+    const [neutral, a, b] = countByOwner(world);
+    let land = 0;
+    for (let i = 0; i < world.terrain.length; i++) if (isLand(world, i)) land++;
+    expect(neutral + a + b).toBe(land);
+    expect(frontLength(world)).toBeGreaterThan(0);
+  });
+});
