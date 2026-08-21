@@ -1,6 +1,7 @@
 import { hexToWorld } from "../hex/layout";
 import { valueNoise, smoothstep, type Octave } from "../terrain/noise";
-import { Terrain, axialOf, worldBounds, type HexWorld } from "./world";
+import { assignOwnership } from "./ownership";
+import { Terrain, axialOf, createEmptyWorld, worldBounds, type HexWorld } from "./world";
 
 /** km spacing / amplitude. Σamplitude = 1 so e = 0.5 + noise/2 spans [0, 1]. */
 export const ELEVATION_OCTAVES: Octave[] = [
@@ -90,4 +91,12 @@ export function fillTerrain(world: HexWorld): void {
   for (let i = 0; i < n; i++) {
     world.terrain[i] = classify(world.elevation[i]!, t, moisture[i]!, forest);
   }
+}
+
+/** Full pipeline: terrain then ownership. Deterministic; never throws. */
+export function generateWorld(seed: number): HexWorld {
+  const world = createEmptyWorld(Math.floor(seed));
+  fillTerrain(world);
+  assignOwnership(world);
+  return world;
 }

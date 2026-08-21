@@ -135,3 +135,137 @@ describe("terrain generation", () => {
     expect(FOREST_QUANTILE).toBeLessThan(1);
   });
 });
+
+import { generateWorld } from "../src/strategic/generate";
+import { MIN_CAPITAL_DISTANCE, assignOwnership, labelLandmasses, mainLandmass } from "../src/strategic/ownership";
+import { distance, neighbors } from "../src/hex/ops";
+
+/** All indices reachable from `start` through hexes with the same owner. */
+function sameOwnerComponent(world: ReturnType<typeof generateWorld>, start: number): Set<number> {
+  const owner = world.owner[start]!;
+  const seen = new Set<number>([start]);
+  const stack = [start];
+  while (stack.length) {
+    const i = stack.pop()!;
+    for (const n of neighbors(axialOf(world, i))) {
+      const j = hexAt(world, n);
+      if (j >= 0 && !seen.has(j) && world.owner[j] === owner) { seen.add(j); stack.push(j); }
+    }
+  }
+  return seen;
+}
+
+describe("landmasses", () => {
+  test("labels connected land components and sizes them", () => {
+    const w = createEmptyWorld(1, 5, 1); // one row: L L O L O
+    w.terrain.set([Terrain.Plains, Terrain.Hills, Terrain.Ocean, Terrain.Forest, Terrain.Ocean]);
+    const { label, sizes } = labelLandmasses(w);
+    expect(Array.from(label)).toEqual([0, 0, -1, 1, -1]);
+    expect(sizes).toEqual([2, 1]);
+    expect(mainLandmass(sizes)).toBe(0);
+    expect(mainLandmass([3, 7, 7])).toBe(1); // ties → lowest id
+    expect(mainLandmass([])).toBe(-1);
+  });
+});
+
+describe("ownership", () => {
+  test("degenerate fallback: capitals too close → column split, flag set", () => {
+    const w = createEmptyWorld(1, 6, 3);
+    w.terrain.fill(Terrain.Plains);
+    assignOwnership(w);
+    expect(w.degenerate).toBe(true);
+    expect(distance(w.capitals[0], w.capitals[1])).toBeLessThan(MIN_CAPITAL_DISTANCE);
+    for (let i = 0; i < w.owner.length; i++) {
+      expect(w.owner[i]).toBe(i % 6 < 2.5 ? Owner.BlocA : Owner.BlocB);
+    }
+  });
+
+  test("a 20×3 plains strip is split between two blocs with both capitals owning themselves", () => {
+    const w = createEmptyWorld(3, 20, 3);
+    w.terrain.fill(Terrain.Plains);
+    assignOwnership(w);
+    expect(w.degenerate).toBe(false);
+    expect(distance(w.capitals[0], w.capitals[1])).toBeGreaterThanOrEqual(MIN_CAPITAL_DISTANCE);
+    expect(w.owner[hexAt(w, w.capitals[0])]).toBe(Owner.BlocA);
+    expect(w.owner[hexAt(w, w.capitals[1])]).toBe(Owner.BlocB);
+    let a = 0;
+    let b = 0;
+    for (const o of w.owner) { if (o === Owner.BlocA) a++; else if (o === Owner.BlocB) b++; }
+    expect(a + b).toBe(60);
+    expect(a).toBeGreaterThan(10);
+    expect(b).toBeGreaterThan(10);
+  });
+
+  test("ownership is deterministic per seed", () => {
+    const a = createEmptyWorld(5, 20, 3);
+    const b = createEmptyWorld(5, 20, 3);
+    a.terrain.fill(Terrain.Plains);
+    b.terrain.fill(Terrain.Plains);
+    assignOwnership(a);
+    assignOwnership(b);
+    expect(a.owner).toEqual(b.owner);
+  });
+});
+
+describe("generateWorld", () => {
+  const world = generateWorld(1);
+
+  test("same seed → identical world; different seed → different owners", () => {
+    const again = generateWorld(1);
+    expect(again.elevation).toEqual(world.elevation);
+    expect(again.terrain).toEqual(world.terrain);
+    expect(again.owner).toEqual(world.owner);
+    expect(again.capitals).toEqual(world.capitals);
+    const other = generateWorld(2);
+    let differs = false;
+    for (let i = 0; i < world.owner.length; i++) if (world.owner[i] !== other.owner[i]) { differs = true; break; }
+    expect(differs).toBe(true);
+  });
+
+  test("seed is floored", () => {
+    expect(generateWorld(1.9).owner).toEqual(world.owner);
+  });
+
+  test("ocean is neutral and every owned hex is land", () => {
+    for (let i = 0; i < world.owner.length; i++) {
+      if (world.terrain[i] === Terrain.Ocean) expect(world.owner[i]).toBe(Owner.Neutral);
+      if (world.owner[i] !== Owner.Neutral) expect(isLand(world, i)).toBe(true);
+    }
+  });
+
+  test("capitals are land, owned by their bloc, far enough apart; world is not degenerate", () => {
+    expect(world.degenerate).toBe(false);
+    const [a, b] = world.capitals;
+    expect(isLand(world, hexAt(world, a))).toBe(true);
+    expect(isLand(world, hexAt(world, b))).toBe(true);
+    expect(world.owner[hexAt(world, a)]).toBe(Owner.BlocA);
+    expect(world.owner[hexAt(world, b)]).toBe(Owner.BlocB);
+    expect(distance(a, b)).toBeGreaterThanOrEqual(MIN_CAPITAL_DISTANCE);
+  });
+
+  test("each bloc's territory is connected to its capital", () => {
+    for (const [owner, capital] of [[Owner.BlocA, world.capitals[0]], [Owner.BlocB, world.capitals[1]]] as const) {
+      const reach = sameOwnerComponent(world, hexAt(world, capital));
+      let owned = 0;
+      for (const o of world.owner) if (o === owner) owned++;
+      expect(reach.size).toBe(owned);
+    }
+  });
+
+  test("both blocs hold a substantial share of the land for several seeds", () => {
+    for (const seed of [2, 3, 4]) {
+      const w = generateWorld(seed);
+      let land = 0;
+      let a = 0;
+      let b = 0;
+      for (let i = 0; i < w.owner.length; i++) {
+        if (isLand(w, i)) land++;
+        if (w.owner[i] === Owner.BlocA) a++;
+        if (w.owner[i] === Owner.BlocB) b++;
+      }
+      expect(w.degenerate).toBe(false);
+      expect(a / land).toBeGreaterThan(0.2);
+      expect(b / land).toBeGreaterThan(0.2);
+    }
+  });
+});
