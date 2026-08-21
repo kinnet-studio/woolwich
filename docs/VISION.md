@@ -121,10 +121,18 @@ simulate it; otherwise roll it.**
 
 ## Current state
 
-v1 is an interactive artillery physics playground: deterministic 3D
-ballistics core (gravity, quadratic drag, wind; semi-implicit Euler at
-1/120 s) shared between live simulation and prediction, side + top-down
-canvas views, slider controls and time controls. The physics core is
-renderer-independent and becomes the simulated tier of the battle layer
-unchanged; guidance and terrain-aware impact (`z <= terrain(x, y)`) are its
-next growth steps.
+- **v1 playground** (`index.html`): deterministic 3D ballistics core
+  (gravity, quadratic drag, wind; semi-implicit Euler at 1/120 s) shared
+  between live simulation and prediction, side + top-down views, slider and
+  time controls. Renderer-independent; it is the simulated tier of the
+  battle layer unchanged.
+- **v2.1 shooting gallery** (`gallery.html`): seeded 8 km terrain
+  heightfield, launch origin and terrain impact seams in the physics,
+  fire-solution solver (high/low arc, manual elevation), platoon stands with
+  deterministic burst damage and suppression, `@ue-too/being` fire-control
+  state machine.
+- **v3.0 hex world map** (`map.html`): the strategic layer's foundation —
+  pure hex math, an 80 × 50 world of 20 km hexes with seeded terrain classes
+  and two blocs partitioned along a noisy frontline, rendered with pan/zoom,
+  hover, and selection. One hex ≈ one battle map: the bridge's first shared
+  unit.

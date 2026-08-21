@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>woolwich — world map</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #14181f; color: #d7dde6; font: 14px/1.4 system-ui, sans-serif; display: flex; height: 100vh; }
+    #panel { width: 280px; padding: 16px; box-sizing: border-box; overflow-y: auto; background: #1b212b; }
+    #view { flex: 1; position: relative; min-width: 0; }
+    #view canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+    #view .label { position: absolute; top: 8px; left: 12px; opacity: 0.6; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; pointer-events: none; }
+    button { margin: 0 6px 0 0; padding: 6px 14px; background: #2c3440; color: inherit; border: 1px solid #3d4859; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #38445a; }
+    #seed { width: 90px; background: #2c3440; color: inherit; border: 1px solid #3d4859; border-radius: 4px; padding: 4px 8px; }
+    #info, #tally { margin-top: 14px; font-variant-numeric: tabular-nums; white-space: pre-line; opacity: 0.9; }
+    #tally { opacity: 0.75; font-size: 13px; }
+    .hint { margin-top: 16px; opacity: 0.5; font-size: 12px; }
+    a { color: #8fb4ff; }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <h3 style="margin-top:0">woolwich — world map</h3>
+    <div>
+      <input id="seed" type="number" value="1" />
+      <button id="regen">Regenerate</button>
+    </div>
+    <div id="info">hover a hex</div>
+    <div id="tally"></div>
+    <p class="hint">drag to pan · wheel to zoom · click to select<br /><a href="./gallery.html">gallery</a> · <a href="./index.html">playground</a></p>
+  </div>
+  <div id="view"><canvas id="map"></canvas><span class="label">strategic map — 20 km hexes</span></div>
+  <script type="module" src="./src/strategic/main.ts"></script>
+</body>
+</html>
