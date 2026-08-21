@@ -31,8 +31,9 @@ export function setupMapPanel(): MapPanel {
   const info = document.getElementById("info")!;
   const tally = document.getElementById("tally")!;
   const seed = () => {
-    const v = Math.floor(Number(seedInput.value));
-    if (!Number.isFinite(v)) {
+    const raw = seedInput.value.trim();
+    const v = Math.floor(Number(raw));
+    if (raw === "" || !Number.isFinite(v)) {
       seedInput.value = "1";
       return 1;
     }

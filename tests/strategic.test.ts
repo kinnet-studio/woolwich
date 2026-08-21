@@ -205,6 +205,30 @@ describe("ownership", () => {
     assignOwnership(b);
     expect(a.owner).toEqual(b.owner);
   });
+
+  test("terrain cost shapes the partition: a mountain wall near A shrinks A's share", () => {
+    const seedsChecked = [1, 2, 3, 4, 5];
+    for (const seed of seedsChecked) {
+      const plains = createEmptyWorld(seed, 21, 3);
+      plains.terrain.fill(Terrain.Plains);
+      const walled = createEmptyWorld(seed, 21, 3);
+      walled.terrain.fill(Terrain.Plains);
+      for (let row = 0; row < 3; row++) {
+        for (let col = 5; col <= 7; col++) walled.terrain[index(walled, col, row)] = Terrain.Mountains;
+      }
+      assignOwnership(plains);
+      assignOwnership(walled);
+      // same capitals either way: both variants have Plains at the target-nearest hexes
+      expect(walled.capitals).toEqual(plains.capitals);
+      const share = (w: typeof plains) => {
+        let a = 0;
+        for (const o of w.owner) if (o === Owner.BlocA) a++;
+        return a;
+      };
+      // the wall sits on A's side of the strip, so crossing it costs A reach
+      expect(share(walled)).toBeLessThan(share(plains));
+    }
+  });
 });
 
 describe("generateWorld", () => {
