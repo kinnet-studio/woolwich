@@ -320,3 +320,16 @@ describe("queries", () => {
     expect(frontLength(world)).toBeGreaterThan(0);
   });
 });
+
+import { describeHex } from "../src/strategic/panel";
+
+describe("describeHex", () => {
+  test("lists coordinates, terrain, elevation, and owner", () => {
+    const w = createEmptyWorld(1, 4, 3);
+    const i = index(w, 1, 2); // offset (1,2) → axial (0,2)
+    w.terrain[i] = Terrain.Hills;
+    w.elevation[i] = 0.7349;
+    w.owner[i] = Owner.BlocB;
+    expect(describeHex(w, i)).toBe("offset: col 1, row 2\naxial: q 0, r 2\nterrain: hills\nelevation: 0.73\nowner: Bloc B");
+  });
+});
