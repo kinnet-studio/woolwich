@@ -48,7 +48,8 @@ src/
     generate.ts            (modified: uses noise.ts; same output per seed)
   strategic/
     world.ts               HexWorld type, indexing, bounds
-    generate.ts            generateWorld(seed): elevation, terrain, ownership
+    generate.ts            generateWorld(seed): elevation, terrain classes
+    ownership.ts           landmasses, capitals, bloc partition
     queries.ts             frontier edges, counts
     main.ts                page wiring: board, pointer → hex, panel, rAF loop
     panel.ts               seed control, info readout, tally
@@ -70,8 +71,10 @@ Pure, DOM-free, no knowledge of terrain or rendering.
 - World coordinates in **kilometers**, `+x` east, `+y` north (same
   orientation as the battle layer, different unit).
 - Direction indices 0–5 start at east and go counterclockwise, matching the
-  project's angle convention: `DIRECTIONS = [(+1,0), (+1,−1), (0,−1),
-  (−1,0), (−1,+1), (0,+1)]` as `(q, r)` deltas.
+  project's angle convention: `DIRECTIONS = [(+1,0), (0,+1), (−1,+1),
+  (−1,0), (0,−1), (+1,−1)]` as `(q, r)` deltas — E, NE, NW, W, SW, SE
+  (with `y = 1.5·size·r` pointing north, `+r` is north-east). Direction `d`
+  points at angle `60·d` degrees.
 
 **`coords.ts`**
 
@@ -104,9 +107,10 @@ Pure, DOM-free, no knowledge of terrain or rendering.
   `x = size·√3·(q + r/2)`, `y = size·1.5·r`.
 - `worldToHex(p, layout): Axial` — inverse to fractional axial, then
   `roundHex`. Always returns an axial; bounds are the caller's concern.
-- `hexCorners(h, layout): {x, y}[]` — 6 points, starting at angle 30°
-  (upper-right corner) and going counterclockwise, each `size` from the
-  center.
+- `hexCorners(h, layout): {x, y}[]` — 6 points, corner `i` at angle
+  `60·i − 30` degrees (corner 0 lower-right, corner 1 upper-right, corner 2
+  top, …), each `size` from the center. The edge facing direction `d` runs
+  from corner `d` to corner `(d + 1) mod 6`.
 - `hexWidth(layout) = size·√3`, `hexHeight(layout) = size·2`,
   `rowSpacing(layout) = size·1.5` — convenience constants for layout code.
 
@@ -179,21 +183,29 @@ All noise is sampled at hex centers in world km, shifted so coordinates are
 non-negative: `nx = x + hexWidth/2`, `ny = y + size`.
 
 1. **Elevation.**
-   `ELEVATION_OCTAVES = [{400, 0.5}, {200, 0.25}, {100, 0.125}, {50, 0.0625}]`
-   (km, amplitude), `salt = 0`. Raw value normalized to `[0, 1]`:
-   `e = 0.5 + noise / (2·Σamplitude)`. Then an edge falloff so the theater
-   reads as a landmass with coasts: with `u = (nx / width)·2 − 1`,
-   `v = (ny / height)·2 − 1`, `d = √(u² + v²)`,
-   `falloff = 1 − smoothstep(clamp((d − 0.55) / 0.45, 0, 1))`;
-   `elevation = e·falloff`.
-2. **Terrain classes.** Named constants in one place:
-   `SEA_LEVEL = 0.40`, `HILLS = 0.66`, `MOUNTAINS = 0.82`,
-   `FOREST_MOISTURE = 0.55`. `elevation < SEA_LEVEL` → Ocean;
-   `≥ MOUNTAINS` → Mountains; `≥ HILLS` → Hills; otherwise Plains, except
-   that a second, independent moisture field
+   `ELEVATION_OCTAVES = [{400, 0.4}, {200, 0.3}, {100, 0.2}, {50, 0.1}]`
+   (km, amplitude), `salt = 0`. Raw value normalized:
+   `e = 0.5 + noise / (2·Σamplitude)`. Then a subtractive edge falloff so
+   the theater reads as a continent with coasts and islands rather than a
+   tiled slab: with `u = (nx / width)·2 − 1`, `v = (ny / height)·2 − 1`,
+   `d = √(u² + v²)`,
+   `falloff = smoothstep(clamp((d − 0.5) / 0.5, 0, 1))`;
+   `elevation = clamp(e − 0.35·falloff, 0, 1)`, stored as `Float32`.
+2. **Terrain classes — quantile thresholds.** Absolute thresholds make the
+   land/mountain share swing wildly between seeds (the 400 km octave sets
+   each seed's overall level), so thresholds are quantiles of this world's
+   own elevation field: `SEA_QUANTILE = 0.45`, `HILLS_QUANTILE = 0.82`,
+   `MOUNTAINS_QUANTILE = 0.94`, `FOREST_QUANTILE = 0.60`, with
+   `quantile(values, f) = sorted[min(n − 1, floor(f·n))]` computed over the
+   stored `Float32` elevations. `elevation < quantile(SEA)` → Ocean;
+   `≥ quantile(MOUNTAINS)` → Mountains; `≥ quantile(HILLS)` → Hills;
+   otherwise Plains, except that a second, independent moisture field
    (`MOISTURE_OCTAVES = [{300, 0.5}, {120, 0.3}, {40, 0.2}]`, `salt = 16`,
-   normalized the same way, no falloff) `≥ FOREST_MOISTURE` turns Plains into
-   Forest.
+   normalized the same way, no falloff, not stored)
+   `≥ quantile(moisture, FOREST_QUANTILE)` turns Plains into Forest. Every
+   seed therefore has ≈ 55 % land, ≈ 22 % of land hills, ≈ 11 % mountains,
+   and 15–40 % forest (prototyped over seeds 1–12: one main continent of
+   ≈ 2000–2200 hexes plus islands, capitals 40–56 hexes apart).
 3. **Landmasses.** BFS over land hexes (6-neighborhood) labels connected
    components; the largest by hex count is the *main landmass* (ties →
    the one containing the lowest index).
@@ -242,8 +254,9 @@ finite grid with strictly positive costs.
 
 - `dev` script becomes `bun index.html gallery.html map.html`.
 - Layout: a full-window canvas and a fixed side panel (plain DOM, same
-  style as the gallery). The canvas is sized from the window on load and
-  on `resize`; a zero-area window skips the frame.
+  style as the gallery). The canvas is CSS-sized; `Board`'s own resize
+  observer keeps the backing store in sync (as on the other pages). A frame
+  with no `board.context` is skipped.
 - Board: `new Board(canvas)`, `alignCoordinateSystem = false`, camera
   positioned at the center of `worldBounds(world)` with zoom chosen so the
   whole map fits with a 5% margin. Board provides pan/zoom.
@@ -285,7 +298,8 @@ Three layers, drawn in world coordinates.
    `border` edges as a thin dashed line.
 3. **Interaction layer.** Per frame: capital markers (a ring at each
    capital's center), hovered hex outline, selected hex outline (different
-   color/weight).
+   color/weight). Line widths are specified in screen pixels and divided by
+   the camera zoom so they stay crisp at any zoom.
 
 `renderHexMap` is the only entry point the page uses.
 
@@ -304,7 +318,9 @@ transitions. Revisit when orders/movement arrive.)
 - Degenerate landmass (capitals < 8 apart) → column-split fallback and a
   visible warning; generation never throws.
 - Dijkstra terminates (finite grid, positive costs); BFS terminates.
-- Zero-area canvas skips rendering for that frame.
+- A frame without a `board.context` is skipped.
+- Clicks that end a pan (pointer moved more than 4 px since `pointerdown`)
+  do not change the selection.
 - Layer building with an unavailable 2D context (headless) returns a layer
   whose `canvas` is `null`; `drawLayer` is a no-op for it. Keeps
   `buildTerrainLayer` importable in tests without exercising drawing.
@@ -331,8 +347,10 @@ transitions. Revisit when orders/movement arrive.)
   refactor provably preserves output.
 - **Strategic (`tests/strategic.test.ts`):** same seed → identical
   `elevation`, `terrain`, `owner` arrays and capitals; different seeds →
-  different arrays; every hex's terrain matches its elevation/moisture
-  thresholds (recompute from the exported constants); ocean is always
+  different arrays; every hex's terrain band matches its stored elevation
+  against thresholds recomputed with the exported `quantile` and quantile
+  constants; `classify` unit-tested on explicit values; land count within
+  2100–2300 of 4000 and forest 5–60 % of land; ocean is always
   Neutral and every owned hex is land; both capitals are land, owned by
   their bloc, and ≥ 8 apart on a non-degenerate seed; every bloc's
   territory is connected to its capital through same-owner land (BFS);
