@@ -118,3 +118,39 @@ describe("profileExtent", () => {
     expect(profileExtent({ x: 2000, y: 0, z: 0 }, 180, 4000)).toBeCloseTo(6000, 6);
   });
 });
+
+describe("terrain output is pinned (noise extraction must not change it)", () => {
+  test("generateTerrain(1) samples match recorded values", () => {
+    const t = generateTerrain(1);
+    expect(t.heights[0]).toBeCloseTo(4.513356123352423, 9);
+    expect(t.heights[80]).toBeCloseTo(-26.600040273042396, 9);
+    expect(t.heights[12960]).toBeCloseTo(-7.84389054402709, 9);
+    expect(t.heights[25920]).toBeCloseTo(-24.02479829499498, 9);
+    expect(t.heights[12345]).toBeCloseTo(-3.3715437194656195, 9);
+  });
+});
+
+import { valueNoise } from "../src/terrain/noise";
+
+describe("valueNoise", () => {
+  const octaves = [{ spacing: 100, amplitude: 2 }, { spacing: 50, amplitude: 1 }];
+
+  test("is deterministic per seed and salt, and differs across them", () => {
+    const a = valueNoise(5, octaves, 400, 300);
+    const b = valueNoise(5, octaves, 400, 300);
+    const c = valueNoise(6, octaves, 400, 300);
+    const d = valueNoise(5, octaves, 400, 300, 16);
+    expect(a(37, 91)).toBe(b(37, 91));
+    expect(a(37, 91)).not.toBe(c(37, 91));
+    expect(a(37, 91)).not.toBe(d(37, 91));
+  });
+
+  test("stays within ±Σamplitude across the extent, including the far edge", () => {
+    const n = valueNoise(3, octaves, 400, 300);
+    for (let y = 0; y <= 300; y += 7) {
+      for (let x = 0; x <= 400; x += 7) {
+        expect(Math.abs(n(x, y))).toBeLessThanOrEqual(3);
+      }
+    }
+  });
+});
